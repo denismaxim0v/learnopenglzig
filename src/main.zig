@@ -16,16 +16,31 @@ pub fn main() !void {
     c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_CORE_PROFILE);
     c.glfwWindowHint(c.GLFW_RESIZABLE, c.GL_FALSE);
     c.glfwMakeContextCurrent(window);
+    _ = c.glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     if (c.gladLoadGLLoader(@ptrCast(c.GLADloadproc, &c.glfwGetProcAddress)) == 0) {
-        @panic("shit");
+        @panic("failed to load");
     }
 
     while (c.glfwWindowShouldClose(window) == c.GL_FALSE) {
+        // input
+        processInput(window);
+
         c.glClearColor(0.1, 0.3, 0.3, 1.0);
         c.glClear(c.GL_COLOR_BUFFER_BIT);
 
         c.glfwSwapBuffers(window);
         c.glfwPollEvents();
     }
+}
+
+fn processInput(win: *c.GLFWwindow) void {
+    if (c.glfwGetKey(win, c.GLFW_KEY_ESCAPE) == c.GLFW_PRESS) {
+        c.glfwSetWindowShouldClose(win, c.GL_TRUE);
+    }
+}
+
+pub fn framebuffer_size_callback(win: ?*c.GLFWwindow, width: c_int, height: c_int) callconv(.C) void {
+    _ = win;
+    c.glViewport(0, 0, width, height);
 }
