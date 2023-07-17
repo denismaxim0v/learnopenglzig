@@ -7,17 +7,21 @@ var window: *c.GLFWwindow = undefined;
 const vertexShaderSource: []const u8 =
     \\#version 330 core
     \\layout (location = 0) in vec3 aPos;
+    \\layout (location = 1) in vec3 aColor;
+    \\out vec3 ourColor;
     \\void main()
     \\{
-    \\   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
+    \\   gl_Position = vec4(aPos, 1.0);
+    \\   ourColor = aColor;
     \\};
 ;
 const fragmentShaderSource: []const u8 =
     \\#version 330 core
     \\out vec4 FragColor;
+    \\in vec3 ourColor;
     \\void main()
     \\{
-    \\   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);
+    \\   FragColor = vec4(ourColor, 1.0f);
     \\};
 ;
 
@@ -34,7 +38,7 @@ pub fn main() !void {
     c.glfwMakeContextCurrent(window);
     _ = c.glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-    if (c.gladLoadGLLoader(@ptrCast(c.GLADloadproc, &c.glfwGetProcAddress)) == 0) {
+    if (c.gladLoadGLLoader(@ptrCast(&c.glfwGetProcAddress)) == 0) {
         @panic("failed to load");
     }
 
@@ -49,7 +53,7 @@ pub fn main() !void {
     c.glGetShaderiv(vertexShader, c.GL_COMPILE_STATUS, &ok);
     if (ok == 0) {
         c.glGetShaderiv(vertexShader, c.GL_INFO_LOG_LENGTH, &errorSize);
-        const message = allocator.alloc(u8, @intCast(usize, errorSize)) catch unreachable;
+        const message = allocator.alloc(u8, @intCast(errorSize)) catch unreachable;
         c.glGetShaderInfoLog(vertexShader, errorSize, &errorSize, message.ptr);
         std.log.err("failed to compile shader {s}\n", .{message});
     }
@@ -62,7 +66,7 @@ pub fn main() !void {
     c.glGetShaderiv(fragmentShader, c.GL_COMPILE_STATUS, &ok);
     if (ok == 0) {
         c.glGetShaderiv(vertexShader, c.GL_INFO_LOG_LENGTH, &errorSize);
-        const message = allocator.alloc(u8, @intCast(usize, errorSize)) catch unreachable;
+        const message = allocator.alloc(u8, @intCast(errorSize)) catch unreachable;
         c.glGetShaderInfoLog(vertexShader, errorSize, &errorSize, message.ptr);
         std.log.err("failed to compile shader {s}\n", .{message});
     }
@@ -76,7 +80,7 @@ pub fn main() !void {
     c.glGetProgramiv(shaderProgram, c.GL_LINK_STATUS, &ok);
     if (ok == 0) {
         c.glGetProgramiv(shaderProgram, c.GL_INFO_LOG_LENGTH, &errorSize);
-        const message = allocator.alloc(u8, @intCast(usize, errorSize)) catch unreachable;
+        const message = allocator.alloc(u8, @intCast(errorSize)) catch unreachable;
         c.glGetProgramInfoLog(shaderProgram, errorSize, &errorSize, message.ptr);
         std.log.err("ERROR::PROGRAM::LINK_FAILED\n{s}\n", .{message});
     }
@@ -86,10 +90,11 @@ pub fn main() !void {
     c.glDeleteShader(fragmentShader);
 
     // vertex data
-    const vertices = [9]f32{
-        -0.5, -0.5, 0.0,
-        0.5,  -0.5, 0.0,
-        0.0,  0.5,  0.0,
+    const vertices = [18]f32{
+        //x     y    z    r    g    b
+        -0.5, -0.5, 0.0, 1.0, 0.0, 0.0,
+        0.5,  -0.5, 0.0, 0.0, 1.0, 0.0,
+        0.0,  0.5,  0.0, 0.0, 0.0, 1.0,
     };
 
     var VBO: c_uint = undefined;
@@ -105,11 +110,18 @@ pub fn main() !void {
     c.glBindBuffer(c.GL_ARRAY_BUFFER, VBO);
     c.glBufferData(c.GL_ARRAY_BUFFER, vertices.len * @sizeOf(f32), &vertices, c.GL_STATIC_DRAW);
 
-    c.glVertexAttribPointer(0, 3, c.GL_FLOAT, c.GL_FALSE, 3 * @sizeOf(f32), null);
+    // position
+    c.glVertexAttribPointer(0, 3, c.GL_FLOAT, c.GL_FALSE, 6 * @sizeOf(f32), null);
     c.glEnableVertexAttribArray(0);
+
+    // color
+    c.glVertexAttribPointer(1, 3, c.GL_FLOAT, c.GL_FALSE, 6 * @sizeOf(f32), @ptrFromInt(3 * @sizeOf(f32)));
+    c.glEnableVertexAttribArray(1);
 
     c.glBindBuffer(c.GL_ARRAY_BUFFER, 0);
     c.glBindVertexArray(0);
+
+    c.glUseProgram(shaderProgram);
 
     while (c.glfwWindowShouldClose(window) == c.GL_FALSE) {
         processInput(window);
@@ -117,7 +129,6 @@ pub fn main() !void {
         c.glClearColor(0.2, 0.3, 0.3, 1.0);
         c.glClear(c.GL_COLOR_BUFFER_BIT);
 
-        c.glUseProgram(shaderProgram);
         c.glBindVertexArray(VAO);
         c.glDrawArrays(c.GL_TRIANGLES, 0, 3);
 
