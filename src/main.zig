@@ -1,5 +1,6 @@
 const std = @import("std");
 const c = @import("c.zig");
+const shader = @import("shader.zig");
 
 const allocator = std.heap.c_allocator;
 var window: *c.GLFWwindow = undefined;
@@ -41,53 +42,15 @@ pub fn main() !void {
     if (c.gladLoadGLLoader(@ptrCast(&c.glfwGetProcAddress)) == 0) {
         @panic("failed to load");
     }
-
-    var ok: c.GLint = undefined;
-    var errorSize: c.GLint = undefined;
-
-    // vertex shader
-    const vertexShader = c.glCreateShader(c.GL_VERTEX_SHADER);
-    const vertexSourcePtr: ?[*]const u8 = vertexShaderSource.ptr;
-    c.glShaderSource(vertexShader, 1, &vertexSourcePtr, null);
-    c.glCompileShader(vertexShader);
-    c.glGetShaderiv(vertexShader, c.GL_COMPILE_STATUS, &ok);
-    if (ok == 0) {
-        c.glGetShaderiv(vertexShader, c.GL_INFO_LOG_LENGTH, &errorSize);
-        const message = allocator.alloc(u8, @intCast(errorSize)) catch unreachable;
-        c.glGetShaderInfoLog(vertexShader, errorSize, &errorSize, message.ptr);
-        std.log.err("failed to compile shader {s}\n", .{message});
-    }
-
-    // fragment shader
-    const fragmentShader = c.glCreateShader(c.GL_FRAGMENT_SHADER);
-    const fragmentSourcePtr: ?[*]const u8 = fragmentShaderSource.ptr;
-    c.glShaderSource(fragmentShader, 1, &fragmentSourcePtr, null);
-    c.glCompileShader(fragmentShader);
-    c.glGetShaderiv(fragmentShader, c.GL_COMPILE_STATUS, &ok);
-    if (ok == 0) {
-        c.glGetShaderiv(vertexShader, c.GL_INFO_LOG_LENGTH, &errorSize);
-        const message = allocator.alloc(u8, @intCast(errorSize)) catch unreachable;
-        c.glGetShaderInfoLog(vertexShader, errorSize, &errorSize, message.ptr);
-        std.log.err("failed to compile shader {s}\n", .{message});
-    }
-
-    // shader program
-    const shaderProgram: c_uint = c.glCreateProgram();
-    defer c.glDeleteProgram(shaderProgram);
-    c.glAttachShader(shaderProgram, vertexShader);
-    c.glAttachShader(shaderProgram, fragmentShader);
-    c.glLinkProgram(shaderProgram);
-    c.glGetProgramiv(shaderProgram, c.GL_LINK_STATUS, &ok);
-    if (ok == 0) {
-        c.glGetProgramiv(shaderProgram, c.GL_INFO_LOG_LENGTH, &errorSize);
-        const message = allocator.alloc(u8, @intCast(errorSize)) catch unreachable;
-        c.glGetProgramInfoLog(shaderProgram, errorSize, &errorSize, message.ptr);
-        std.log.err("ERROR::PROGRAM::LINK_FAILED\n{s}\n", .{message});
-    }
+    const shaderProgram = try shader.ShaderProgram.create(
+        allocator,
+        vertexShaderSource,
+        fragmentShaderSource,
+    );
 
     // delete shaders
-    c.glDeleteShader(vertexShader);
-    c.glDeleteShader(fragmentShader);
+    c.glDeleteShader(shaderProgram.vertex.id);
+    c.glDeleteShader(shaderProgram.fragment.id);
 
     // vertex data
     const vertices = [18]f32{
@@ -121,7 +84,7 @@ pub fn main() !void {
     c.glBindBuffer(c.GL_ARRAY_BUFFER, 0);
     c.glBindVertexArray(0);
 
-    c.glUseProgram(shaderProgram);
+    c.glUseProgram(shaderProgram.program_id);
 
     while (c.glfwWindowShouldClose(window) == c.GL_FALSE) {
         processInput(window);
