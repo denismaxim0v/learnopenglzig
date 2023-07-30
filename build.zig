@@ -24,15 +24,14 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    exe.addIncludePath("GLFW/include");
-    exe.addLibraryPath("GLFW/lib");
+    exe.addIncludePath("includes/GLFW/include");
+    exe.addLibraryPath("includes/GLFW/lib");
 
-    exe.addIncludePath("glad/include");
-    exe.addCSourceFile("glad/src/glad.c", &[_][]const u8{"-std=c99"});
+    exe.addIncludePath("includes/glad/include");
+    exe.addCSourceFile("includes/glad/src/glad.c", &[_][]const u8{"-std=c99"});
 
-    // exe.addCSourceFile("stb_image/stb_image_impl.c", &[_][]const u8{"-std=c99"});
-    exe.addIncludePath("stb_image/include");
-    exe.addCSourceFile("stb_image/stb_image_impl.c", &[_][]const u8{"-std=c99"});
+    exe.addIncludePath("includes/stb_image/include");
+    exe.addCSourceFile("includes/stb_image/stb_image_impl.c", &[_][]const u8{"-std=c99"});
 
     exe.linkSystemLibrary("glfw3");
     exe.linkSystemLibrary("c");

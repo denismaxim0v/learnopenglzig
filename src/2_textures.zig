@@ -60,6 +60,7 @@ pub fn main() !void {
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 3);
     c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_CORE_PROFILE);
     c.glfwMakeContextCurrent(window);
+    c.glfwSwapInterval(1);
     _ = c.glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     if (c.gladLoadGLLoader(@ptrCast(&c.glfwGetProcAddress)) == 0) {
