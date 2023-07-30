@@ -2,6 +2,7 @@ const std = @import("std");
 const c = @import("c.zig");
 const shader = @import("shader.zig");
 const img = @import("image.zig");
+const math = @import("math.zig");
 
 const allocator = std.heap.c_allocator;
 var window: *c.GLFWwindow = undefined;
@@ -9,16 +10,15 @@ var window: *c.GLFWwindow = undefined;
 const vertexShaderSource: []const u8 =
     \\#version 330 core
     \\layout (location = 0) in vec3 aPos;
-    \\layout (location = 1) in vec3 aColor;
-    \\layout (location = 2) in vec2 aTexCoord;
+    \\layout (location = 1) in vec2 aTexCoord;
     \\
-    \\out vec3 ourColor;
     \\out vec2 TexCoord;
+    \\
+    \\uniform mat4 transform;
     \\
     \\void main()
     \\{
-    \\	gl_Position = vec4(aPos, 1.0);
-    \\	ourColor = aColor;
+    \\	gl_Position = transform * vec4(aPos, 1.0);
     \\	TexCoord = vec2(aTexCoord.x, aTexCoord.y);
     \\}
 ;
@@ -60,6 +60,7 @@ pub fn main() !void {
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 3);
     c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_CORE_PROFILE);
     c.glfwMakeContextCurrent(window);
+    c.glfwSwapInterval(1);
     _ = c.glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     if (c.gladLoadGLLoader(@ptrCast(&c.glfwGetProcAddress)) == 0) {
@@ -72,11 +73,11 @@ pub fn main() !void {
     );
 
     // vertex data
-    const vertices = [32]f32{
-        0.5, 0.5, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, // top right
-        0.5, -0.5, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, // bottom right
-        -0.5, -0.5, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, // bottom left
-        -0.5, 0.5, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, // top left,
+    const vertices = [20]f32{
+        0.5, 0.5, 0.0, 1.0, 1.0, // top right
+        0.5, -0.5, 0.0, 1.0, 0.0, // bottom right
+        -0.5, -0.5, 0.0, 0.0, 0.0, // bottom left
+        -0.5, 0.5, 0.0, 0.0, 1.0, // top left
     };
 
     const indices = [6]c_uint{
@@ -105,16 +106,12 @@ pub fn main() !void {
     c.glBufferData(c.GL_ELEMENT_ARRAY_BUFFER, indices.len * @sizeOf(c_uint), &indices, c.GL_STATIC_DRAW);
 
     // position
-    c.glVertexAttribPointer(0, 3, c.GL_FLOAT, c.GL_FALSE, 8 * @sizeOf(f32), null);
+    c.glVertexAttribPointer(0, 3, c.GL_FLOAT, c.GL_FALSE, 5 * @sizeOf(f32), null);
     c.glEnableVertexAttribArray(0);
 
-    // color
-    c.glVertexAttribPointer(1, 3, c.GL_FLOAT, c.GL_FALSE, 8 * @sizeOf(f32), @ptrFromInt(3 * @sizeOf(f32)));
-    c.glEnableVertexAttribArray(1);
-
     // texture
-    c.glVertexAttribPointer(2, 2, c.GL_FLOAT, c.GL_FALSE, 8 * @sizeOf(f32), @ptrFromInt(6 * @sizeOf(f32)));
-    c.glEnableVertexAttribArray(2);
+    c.glVertexAttribPointer(1, 2, c.GL_FLOAT, c.GL_FALSE, 5 * @sizeOf(f32), @ptrFromInt(3 * @sizeOf(f32)));
+    c.glEnableVertexAttribArray(1);
 
     var texture1: c_uint = undefined;
     c.glGenTextures(1, &texture1);
@@ -181,13 +178,24 @@ pub fn main() !void {
         c.glClearColor(0.2, 0.3, 0.3, 1.0);
         c.glClear(c.GL_COLOR_BUFFER_BIT);
 
-        c.glUseProgram(shaderProgram.program_id);
-        c.glBindVertexArray(VAO);
-
         c.glActiveTexture(c.GL_TEXTURE0);
         c.glBindTexture(c.GL_TEXTURE_2D, texture1);
         c.glActiveTexture(c.GL_TEXTURE1);
         c.glBindTexture(c.GL_TEXTURE_2D, texture2);
+
+        var transform = math.Mat4x4.identity
+            .translateByVec(math.Vec3.init(0.0, 0.0, 0.5))
+            .rotate(@floatCast(c.glfwGetTime()), math.Vec3.init(0.0, 0.0, 1.0));
+
+        c.glUseProgram(shaderProgram.program_id);
+        c.glUniformMatrix4fv(
+            c.glGetUniformLocation(shaderProgram.program_id, "transform"),
+            1,
+            c.GL_FALSE,
+            &transform.data[0],
+        );
+
+        c.glBindVertexArray(VAO);
 
         c.glDrawElements(c.GL_TRIANGLES, 6, c.GL_UNSIGNED_INT, null);
 
